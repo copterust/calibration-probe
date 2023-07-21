@@ -1,0 +1,9 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# Use `probe-run --list-chips` to find yours
+runner = "probe-run --chip STM32F303K8Tx --connect-under-reset"
+
+[build]
+target = "thumbv7em-none-eabihf"
+
+[env]
+DEFMT_LOG = "trace"
