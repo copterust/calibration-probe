@@ -3,10 +3,9 @@
 #![feature(type_alias_impl_trait)]
 
 use embassy_executor::Spawner;
-use embassy_stm32::gpio::Pin;
-use embassy_stm32::usart::{Config, Uart};
-use embassy_stm32::{bind_interrupts, peripherals, usart};
+use embassy_stm32::{gpio::{Pin, AnyPin, Input, Pull}, exti::{ExtiInput, AnyChannel, Channel}, Peripherals};
 use {defmt_rtt as _, panic_probe as _};
+use defmt::*;
 
 mod led_state;
 
@@ -17,28 +16,16 @@ async fn main(spawner: Spawner) {
     spawner.spawn(led_state::task(p.PB3.degrade())).unwrap();
     led_state::idle();
 
-    let mut usart_config = Config::default();
-    usart_config.baudrate = 460800;
+    spawner.spawn(data_ready(p.PA11.degrade(), p.EXTI13.degrade())).unwrap();
+}
 
-    let mut usart = Uart::new(
-        p.USART2,
-        p.PA15,
-        p.PA2,
-        Irqs,
-        p.DMA1_CH7,
-        p.DMA1_CH6,
-        usart_config,
-    );
-
-    usart.write(b"\r\nCalibration Probe\r\n").await.unwrap();
-
-    let mut msg: [u8; 1] = [0; 1];
+#[embassy_executor::task]
+async fn data_ready(pin: AnyPin, ch: AnyChannel) {
+    let drdy_input = Input::new(pin, Pull::None);
+    let mut drdy = ExtiInput::new(drdy_input, ch);
     loop {
-        usart.read(&mut msg).await.unwrap();
-        usart.write(&msg).await.unwrap();
+        drdy.wait_for_rising_edge().await;
+        info!("Interrupt");
     }
 }
 
-bind_interrupts!(struct Irqs {
-    USART2 => usart::InterruptHandler<peripherals::USART2>;
-});
