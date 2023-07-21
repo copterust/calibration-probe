@@ -18,19 +18,12 @@ pub fn error() {
     LED_STATE.store(LedState::Error, Ordering::Relaxed);
 }
 
-pub async fn blink() {
-    let state: LedState = LED_STATE.load(Ordering::Relaxed);
-    LED_STATE.store(LedState::Error, Ordering::Relaxed);
-    Timer::after(Duration::from_millis(2000)).await; // long enough for every state
-    LED_STATE.store(state, Ordering::Relaxed);
-}
-
 #[atomic_enum]
 enum LedState {
-    Off = 0,
-    Idle = 10,
-    Error = 20,
-    BlinkOnce = 30,
+    On = 0,
+    Off,
+    Idle,
+    Error,
 }
 
 impl Default for LedState {
@@ -62,13 +55,9 @@ pub async fn task(led: AnyPin) {
                 led.set_low();
                 Timer::after(Duration::from_millis(500)).await;
             }
-            LedState::BlinkOnce => {
-                led.set_low();
-                Timer::after(Duration::from_millis(10)).await;
+            LedState::On => {
                 led.set_high();
                 Timer::after(Duration::from_millis(5)).await;
-                led.set_low();
-                Timer::after(Duration::from_millis(10)).await;
             }
         }
     }
