@@ -404,7 +404,7 @@ pub async fn task(mut mpu: Mpu9250) {
                     mpu.write(
                         Register::UserCtrl,
                         UserCtrlBit::SigCondRst as u8
-                            // | UserCtrlBit::I2cMstEn as u8
+                            | UserCtrlBit::I2cMstEn as u8
                             | UserCtrlBit::I2cIfDis as u8
                             | UserCtrlBit::I2cMstRst as u8,
                     )
@@ -444,7 +444,7 @@ pub async fn task(mut mpu: Mpu9250) {
             State::FifoRead => {
                 let fifo_count = mpu.fifo_read_count().await;
                 info!("MPU9250: FIFO count {}", fifo_count);
-                Timer::after(Duration::from_micros(100_000)).await;
+                Timer::after(Duration::from_micros(1_000_000)).await;
             }
         }
     }
@@ -455,8 +455,8 @@ async fn data_ready(pin: AnyPin, ch: AnyChannel) {
     let drdy_input = Input::new(pin, Pull::None);
     let mut drdy = ExtiInput::new(drdy_input, ch);
     loop {
-        drdy.wait_for_rising_edge().await;
-        info!("MPU9250: interrupt");
+        drdy.wait_for_falling_edge().await;
+        // info!("MPU9250: interrupt");
     }
 }
 
