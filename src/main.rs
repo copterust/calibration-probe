@@ -11,7 +11,6 @@ use embassy_stm32::{
     exti::{AnyChannel, Channel, ExtiInput},
     gpio::{AnyPin, Input, Pin, Pull},
     time::Hertz,
-    Peripherals,
 };
 use {defmt_rtt as _, panic_probe as _};
 

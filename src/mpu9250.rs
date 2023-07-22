@@ -16,7 +16,7 @@ impl Mpu9250 {
     pub async fn reset(&mut self) {
         self.write(Register::PwrMgmt1, PwrMgmt1Bit::HReset as u8)
             .await;
-        Timer::after(Duration::from_micros(100000)).await;
+        Timer::after(Duration::from_micros(100_000)).await;
     }
 
     async fn write(&mut self, reg: Register, value: u8) {
@@ -32,7 +32,7 @@ impl Mpu9250 {
         let whoami = self.read(Register::WhoAmI).await;
 
         if WHO_AM_I != whoami {
-            debug!("MPU9250: unexpected WHO_AM_I {:#04x}", whoami);
+            info!("MPU9250: unexpected WHO_AM_I {:#04x}", whoami);
             return Err(whoami);
         }
 
@@ -74,6 +74,7 @@ enum PwrMgmt1Bit {
     ClkSel0 = BIT0,
 }
 
+#[allow(unused)]
 #[repr(u8)]
 enum UserCtrlBit {
     FifoEn = BIT6,
@@ -108,8 +109,8 @@ pub fn new(spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>, ncs: AnyPin) -> Mpu9250 
     let ncs = Output::new(ncs, Level::High, Speed::Low);
 
     Mpu9250 {
-        spi: spi,
-        ncs: ncs,
+        spi,
+        ncs,
         state: State::Reset,
     }
 }
