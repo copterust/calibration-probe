@@ -8,6 +8,7 @@ use embassy_stm32::gpio::Pin;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::{exti::Channel, time::Hertz};
+use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _};
 
 mod led_state;
@@ -50,6 +51,10 @@ async fn main(spawner: Spawner) {
     let mpu: mpu9250::Mpu9250 =
         mpu9250::new(spi, p.PB0.degrade(), p.PA11.degrade(), p.EXTI13.degrade()); // D3
     spawner.spawn(mpu9250::task(mpu)).unwrap();
+
+    loop {
+        Timer::after(Duration::from_micros(1_000_000)).await;
+    }
 }
 
 bind_interrupts!(struct Irqs {
