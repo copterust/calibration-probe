@@ -17,6 +17,7 @@ use {defmt_rtt as _, panic_probe as _};
 
 mod led_state;
 mod serial;
+mod mpu9250;
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -43,6 +44,23 @@ async fn main(spawner: Spawner) {
     );
 
     spawner.spawn(serial::echo_task(usart)).unwrap();
+
+    let spi = Spi::new(
+        p.SPI1,
+        p.PA5,
+        p.PB5,
+        p.PB4,
+        p.DMA1_CH3,
+        p.DMA1_CH2,
+        Hertz(1_000_000),
+        SpiConfig::default(),
+    );
+
+    let mut mpu = mpu9250::new(spi, p.PB0.degrade());
+    info!("{:?}", mpu.probe().await);
+    
+    // spawner.spawn(mpu9250::spi_task(spi));
+
 }
 
 #[embassy_executor::task]
