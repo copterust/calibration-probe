@@ -50,13 +50,17 @@ impl Mpu9250 {
     fn configure_accelerometer(&self) {}
     fn configure_gyroscope(&self) {}
 
+    async fn bits_set_clear(&mut self, reg: Register, set: u8, clear: u8) {
+        let current = self.read(reg).await;
+        let next = (current & !clear) | set;
+        if next != current {
+            self.write(reg, next).await;
+        }
+    }
+
     async fn write_config(&mut self) {
         for (reg, set, clear) in CONFIG {
-            let current = self.read(reg).await;
-            let next = (current & !clear) | set;
-            if next != current {
-                self.write(reg, next).await;
-            }
+            self.bits_set_clear(reg, set, clear).await;
         }
     }
 
@@ -83,7 +87,26 @@ impl Mpu9250 {
         Ok(())
     }
 
-    fn reset_fifo(&self) {}
+    async fn fifo_read_count(&mut self) -> u16 {
+        let mut fifo_count_buf = [0u8; 3];
+        let send_buffer = [Register::FifoCountH.read(), 0, 0];
+        self.spi
+            .transfer(&mut fifo_count_buf, &send_buffer)
+            .await
+            .unwrap();
+        return ((fifo_count_buf[1] as u16) << 8) | fifo_count_buf[2] as u16;
+    }
+
+    async fn reset_fifo(&mut self) {
+        self.write(Register::FifoEn, 0).await;
+        self.bits_set_clear(
+            Register::UserCtrl,
+            UserCtrlBit::FifoRst as u8,
+            UserCtrlBit::FifoEn as u8,
+        )
+        .await;
+        self.write_config().await;
+    }
 }
 
 #[repr(u8)]
@@ -113,6 +136,8 @@ enum Register {
 
     ZaOffsetH = 0x7D,
     ZaOffsetL = 0x7E,
+
+    FifoCountH = 0x72,
 }
 
 #[repr(u8)]
@@ -168,7 +193,7 @@ enum IntEnableBit {
 
 #[repr(u8)]
 enum I2cMstDelayCtrlBit {
-    I2cSlvxDlyEn = BIT4 | BIT3 | BIT2 | BIT1 | BIT0, // limit all slave access (1+I2C_MST_DLY)
+    I2cSlvxDlyEn = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
 }
 
 const CONFIG: [(Register, u8, u8); 18] = [
@@ -337,15 +362,20 @@ pub async fn task(mut mpu: Mpu9250) {
                     mpu.state = State::Reset;
                     continue;
                 } else {
-                    info!("MPU9250: configuration done, running...");
+                    info!("MPU9250: configured, running...");
                 }
                 mpu.configure_accelerometer();
                 mpu.configure_gyroscope();
-                // TODO grab drdy here
-                mpu.reset_fifo();
+                // TODO init mag
                 mpu.state = State::FifoRead;
+                // TODO drdy
+                mpu.reset_fifo().await;
             }
-            State::FifoRead => {}
+            State::FifoRead => {
+                let fifo_count = mpu.fifo_read_count().await;
+                info!("Fifo count {}", fifo_count);
+                Timer::after(Duration::from_micros(100_000)).await;
+            }
         }
     }
 }
