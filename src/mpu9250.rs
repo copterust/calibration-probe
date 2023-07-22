@@ -1,6 +1,8 @@
 use defmt::*;
+use embassy_executor::Spawner;
 use embassy_stm32::{
-    gpio::{AnyPin, Level, Output, Speed},
+    exti::{AnyChannel, ExtiInput},
+    gpio::{AnyPin, Input, Level, Output, Pull, Speed},
     peripherals::{DMA1_CH2, DMA1_CH3, SPI1},
     spi::Spi,
 };
@@ -9,6 +11,7 @@ use embassy_time::{Duration, Timer};
 pub struct Mpu9250 {
     spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>,
     ncs: Output<'static, AnyPin>,
+    drdy: Option<(AnyPin, AnyChannel)>,
     state: State,
 }
 
@@ -142,8 +145,8 @@ enum Register {
 
 #[repr(u8)]
 enum ConfigBit {
-    /// When set to ‘1’, when the fifo is full, additional writes will not be written to fifo. 
-    /// When set to ‘0’, when the fifo is full, additional writes will be written to the fifo, 
+    /// When set to ‘1’, when the fifo is full, additional writes will not be written to fifo.
+    /// When set to ‘0’, when the fifo is full, additional writes will be written to the fifo,
     /// replacing the oldest data.
     FifoMode = BIT6,
     /// Gyro: 3600 Hz bandwidth, 0.17 ms delay, 8kHz Fs
@@ -180,7 +183,7 @@ enum FifoEnBit {
     GyroXout = BIT6,
     GyroYout = BIT5,
     GyroZout = BIT4,
-    /// 1 – write ACCEL_XOUT_H, ACCEL_XOUT_L, ACCEL_YOUT_H, 
+    /// 1 – write ACCEL_XOUT_H, ACCEL_XOUT_L, ACCEL_YOUT_H,
     /// ACCEL_YOUT_L, ACCEL_ZOUT_H, and ACCEL_ZOUT_L to the FIFO at the sample rate;
     /// 0 – function is disabled
     Accel = BIT3,
@@ -188,15 +191,15 @@ enum FifoEnBit {
 
 #[repr(u8)]
 enum I2cSlv4CtrlBit {
-    /// When enabled via the I2C_MST_DELAY_CTRL, those slaves will only be 
-    /// enabled every (1+I2C_MST_DLY) samples (as determined by the 
+    /// When enabled via the I2C_MST_DELAY_CTRL, those slaves will only be
+    /// enabled every (1+I2C_MST_DLY) samples (as determined by the
     /// SMPLRT_DIV and DLPF_CFG registers.
     I2cMstDly = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
 }
 
 #[repr(u8)]
 enum I2cMstCtrlBit {
-    /// This bit controls the I2C Master’s transition from one slave read to the next 
+    /// This bit controls the I2C Master’s transition from one slave read to the next
     /// slave read. If 0, there is a restart between reads. If 1, there is a stop between reads.
     I2cMstPNsr = BIT4,
     /// 400 kHz i2c master clock speed
@@ -213,7 +216,7 @@ enum IntPinCfgBit {
 #[repr(u8)]
 enum IntEnableBit {
     /// 1 – Enable Raw Sensor Data Ready interrupt to propagate to interrupt pin.
-    /// The timing of the interrupt can vary depending on the setting in register 36 
+    /// The timing of the interrupt can vary depending on the setting in register 36
     /// I2C_MST_CTRL, bit [6] WAIT_FOR_ES.
     /// 0 – function is disabled.
     RawRdyEn = BIT0,
@@ -221,7 +224,7 @@ enum IntEnableBit {
 
 #[repr(u8)]
 enum I2cMstDelayCtrlBit {
-    /// When enabled, slaves 0-4 will only be accessed (1+I2C_MST_DLY) samples 
+    /// When enabled, slaves 0-4 will only be accessed (1+I2C_MST_DLY) samples
     /// as determined by SMPLRT_DIV and DLPF_CFG
     I2cSlvxDlyEn = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
 }
@@ -298,7 +301,7 @@ const BIT7: u8 = 1 << 7;
 #[allow(unused)]
 #[repr(u8)]
 enum PwrMgmt1Bit {
-    /// 1 – Reset the internal registers and restores the default settings. Write a 1 to 
+    /// 1 – Reset the internal registers and restores the default settings. Write a 1 to
     /// set the reset, the bit will auto clear.
     HReset = BIT7,
     /// When set, the chip is set to sleep mode (After OTP loads, the PU_SLEEP_MODE bit
@@ -311,29 +314,29 @@ enum PwrMgmt1Bit {
 #[allow(unused)]
 #[repr(u8)]
 enum UserCtrlBit {
-    /// 1 – Enable FIFO operation mode. 
+    /// 1 – Enable FIFO operation mode.
     /// 0 – Disable FIFO access from serial interface. To disable FIFO writes by dma,
     /// use FIFO_EN register. To disable possible FIFO writes from DMP, disable the DMP.
     FifoEn = BIT6,
     /// 1 – Enable the I2C Master I/F module; pins ES_DA and ES_SCL are isolated from
     /// pins SDA/SDI and SCL/ SCLK.
-    /// 0 – Disable I2C Master I/F module; pins ES_DA and ES_SCL are logically 
+    /// 0 – Disable I2C Master I/F module; pins ES_DA and ES_SCL are logically
     /// driven by pins SDA/SDI and SCL/ SCLK.
-    /// NOTE: DMP will run when enabled, even if all internal sensors are disabled, 
+    /// NOTE: DMP will run when enabled, even if all internal sensors are disabled,
     /// except when the sample rate is set to 8Khz
     I2cMstEn = BIT5,
-    /// 1 – Reset I2C Slave module and put the serial interface in SPI mode only. 
+    /// 1 – Reset I2C Slave module and put the serial interface in SPI mode only.
     /// This bit auto clears after one clock cycle
     I2cIfDis = BIT4,
     /// 1 – Reset FIFO module. Reset is asynchronous. This bit auto clears after one clock cycle.
     FifoRst = BIT2,
     /// 1 – Reset I2C Master module. Reset is asynchronous. This bit auto clears after one clock cycle.
-    /// NOTE: This bit should only be set when the I2C master has hung. If this bit 
-    /// is set during an active I2C master transaction, the I2C slave will hang, which 
+    /// NOTE: This bit should only be set when the I2C master has hung. If this bit
+    /// is set during an active I2C master transaction, the I2C slave will hang, which
     /// will require the host to reset the slave
     I2cMstRst = BIT1,
-    /// 1 – Reset all gyro digital signal path, accel digital signal path, and temp 
-    /// digital signal path. This bit also clears all the sensor registers. 
+    /// 1 – Reset all gyro digital signal path, accel digital signal path, and temp
+    /// digital signal path. This bit also clears all the sensor registers.
     /// SIG_COND_RST is a pulse of one clk8M wide
     SigCondRst = BIT0,
 }
@@ -358,12 +361,18 @@ impl Register {
     }
 }
 
-pub fn new(spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>, ncs: AnyPin) -> Mpu9250 {
+pub fn new(
+    spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>,
+    ncs: AnyPin,
+    drdy: AnyPin,
+    ch: AnyChannel,
+) -> Mpu9250 {
     let ncs = Output::new(ncs, Level::High, Speed::Low);
 
     Mpu9250 {
         spi,
         ncs,
+        drdy: Some((drdy, ch)),
         state: State::Reset,
     }
 }
@@ -391,10 +400,11 @@ pub async fn task(mut mpu: Mpu9250) {
                             | SignalPathResetBit::TempReset as u8,
                     )
                     .await;
+                    Timer::after(Duration::from_micros(100_000)).await;
                     mpu.write(
                         Register::UserCtrl,
-                        UserCtrlBit::I2cMstEn as u8
-                            | UserCtrlBit::SigCondRst as u8
+                        UserCtrlBit::SigCondRst as u8
+                            // | UserCtrlBit::I2cMstEn as u8
                             | UserCtrlBit::I2cIfDis as u8
                             | UserCtrlBit::I2cMstRst as u8,
                     )
@@ -422,15 +432,31 @@ pub async fn task(mut mpu: Mpu9250) {
                 mpu.configure_gyroscope();
                 // TODO init mag
                 mpu.state = State::FifoRead;
-                // TODO drdy
+                if let Some((pin, ch)) = mpu.drdy.take() {
+                    Spawner::for_current_executor()
+                        .await
+                        .spawn(data_ready(pin, ch))
+                        .unwrap();
+                }
                 mpu.reset_fifo().await;
+                Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
                 let fifo_count = mpu.fifo_read_count().await;
-                info!("Fifo count {}", fifo_count);
+                info!("MPU9250: FIFO count {}", fifo_count);
                 Timer::after(Duration::from_micros(100_000)).await;
             }
         }
+    }
+}
+
+#[embassy_executor::task]
+async fn data_ready(pin: AnyPin, ch: AnyChannel) {
+    let drdy_input = Input::new(pin, Pull::None);
+    let mut drdy = ExtiInput::new(drdy_input, ch);
+    loop {
+        drdy.wait_for_rising_edge().await;
+        info!("MPU9250: interrupt");
     }
 }
 

@@ -2,14 +2,13 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::bind_interrupts;
+use embassy_stm32::gpio::Pin;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::{
-    exti::{AnyChannel, Channel, ExtiInput},
-    gpio::{AnyPin, Input, Pin, Pull},
+    exti::Channel,
     time::Hertz,
 };
 use {defmt_rtt as _, panic_probe as _};
@@ -24,10 +23,6 @@ async fn main(spawner: Spawner) {
 
     spawner.spawn(led_state::task(p.PB3.degrade())).unwrap();
     led_state::idle();
-
-    spawner
-        .spawn(data_ready(p.PA11.degrade(), p.EXTI13.degrade()))
-        .unwrap();
 
     let mut usart_config = UsartConfig::default();
     usart_config.baudrate = 460800;
@@ -55,18 +50,9 @@ async fn main(spawner: Spawner) {
         SpiConfig::default(),
     );
 
-    let mpu: mpu9250::Mpu9250 = mpu9250::new(spi, p.PB0.degrade()); // D3
+    let mpu: mpu9250::Mpu9250 =
+        mpu9250::new(spi, p.PB0.degrade(), p.PA11.degrade(), p.EXTI13.degrade()); // D3
     spawner.spawn(mpu9250::task(mpu)).unwrap();
-}
-
-#[embassy_executor::task]
-async fn data_ready(pin: AnyPin, ch: AnyChannel) {
-    let drdy_input = Input::new(pin, Pull::None);
-    let mut drdy = ExtiInput::new(drdy_input, ch);
-    loop {
-        drdy.wait_for_rising_edge().await;
-        info!("Interrupt");
-    }
 }
 
 bind_interrupts!(struct Irqs {
