@@ -47,20 +47,194 @@ impl Mpu9250 {
         self.ncs.set_high();
         buffer[1]
     }
+    fn configure_accelerometer(&self) {}
+    fn configure_gyroscope(&self) {}
+
+    async fn write_config(&mut self) {
+        for (reg, set, clear) in CONFIG {
+            let current = self.read(reg).await;
+            let next = (current & !clear) | set;
+            if next != current {
+                self.write(reg, next).await;
+            }
+        }
+    }
+
+    async fn validate_config(&mut self) -> Result<(), ()> {
+        for (reg, set, clear) in CONFIG {
+            let value = self.read(reg).await;
+            if set > 0 && ((value & set) != set) {
+                error!(
+                    "MPU9250: register {:?} value {:#04x} bits {:#04x} not set",
+                    reg, value, set
+                );
+                return Err(());
+            }
+
+            if clear > 0 && ((value & clear) != 0) {
+                error!(
+                    "MPU9250: register {:?} value {:#04x} bits {:#04x} not cleared",
+                    reg, value, set
+                );
+                return Err(());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn reset_fifo(&self) {}
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Format)]
 enum Register {
     WhoAmI = 0x75,
     PwrMgmt1 = 0x6B,
     SignalPathReset = 0x68,
     UserCtrl = 0x6A,
+    Config = 0x1A,
+    GyroConfig = 0x1B,
+    AccelConfig = 0x1C,
+    AccelConfig2 = 0x1D,
+    FifoEn = 0x23,
+    I2cMstCtrl = 0x24,
+
+    I2cSlv4Ctrl = 0x34,
+    IntPinCfg = 0x37,
+    IntEnable = 0x38,
+    I2cMstDelayCtrl = 0x67,
+
+    XaOffsetH = 0x77,
+    XaOffsetL = 0x78,
+
+    YaOffsetH = 0x7A,
+    YaOffsetL = 0x7B,
+
+    ZaOffsetH = 0x7D,
+    ZaOffsetL = 0x7E,
 }
+
+#[repr(u8)]
+enum ConfigBit {
+    FifoMode = BIT6,
+    DlpfCfgBypassDlpf8kHz = 7,
+}
+
+#[repr(u8)]
+enum GyroConfigBit {
+    GyroFsSel2000Dps = BIT4 | BIT3,
+    FchoiceBBypassDlpf = BIT1 | BIT0,
+}
+
+#[repr(u8)]
+enum AccelConfigBit {
+    AccelFsSel16g = BIT4 | BIT3,
+}
+
+#[repr(u8)]
+enum AccelConfig2Bit {
+    AccelFchoiceBBypassDlpf = BIT3,
+}
+
+#[repr(u8)]
+enum FifoEnBit {
+    GyroXout = BIT6,
+    GyroYout = BIT5,
+    GyroZout = BIT4,
+    Accel = BIT3,
+}
+
+#[repr(u8)]
+enum I2cSlv4CtrlBit {
+    I2cMstDly = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
+}
+
+#[repr(u8)]
+enum I2cMstCtrlBit {
+    I2cMstPNsr = BIT4,
+    I2cMstClk400kHz = 13,
+}
+
+#[repr(u8)]
+enum IntPinCfgBit {
+    Actl = BIT7,
+}
+
+#[repr(u8)]
+enum IntEnableBit {
+    RawRdyEn = BIT0,
+}
+
+#[repr(u8)]
+enum I2cMstDelayCtrlBit {
+    I2cSlvxDlyEn = BIT4 | BIT3 | BIT2 | BIT1 | BIT0, // limit all slave access (1+I2C_MST_DLY)
+}
+
+const CONFIG: [(Register, u8, u8); 18] = [
+    (
+        Register::Config,
+        ConfigBit::FifoMode as u8 | ConfigBit::DlpfCfgBypassDlpf8kHz as u8,
+        0,
+    ),
+    (
+        Register::GyroConfig,
+        GyroConfigBit::GyroFsSel2000Dps as u8,
+        GyroConfigBit::FchoiceBBypassDlpf as u8,
+    ),
+    (
+        Register::AccelConfig,
+        AccelConfigBit::AccelFsSel16g as u8,
+        0,
+    ),
+    (
+        Register::AccelConfig2,
+        AccelConfig2Bit::AccelFchoiceBBypassDlpf as u8,
+        0,
+    ),
+    (
+        Register::FifoEn,
+        FifoEnBit::GyroXout as u8
+            | FifoEnBit::GyroYout as u8
+            | FifoEnBit::GyroZout as u8
+            | FifoEnBit::Accel as u8,
+        0,
+    ),
+    (Register::I2cSlv4Ctrl, I2cSlv4CtrlBit::I2cMstDly as u8, 0),
+    (
+        Register::I2cMstCtrl,
+        I2cMstCtrlBit::I2cMstPNsr as u8 | I2cMstCtrlBit::I2cMstClk400kHz as u8,
+        0,
+    ),
+    (Register::IntPinCfg, IntPinCfgBit::Actl as u8, 0),
+    (Register::IntEnable, IntEnableBit::RawRdyEn as u8, 0),
+    (
+        Register::I2cMstDelayCtrl,
+        I2cMstDelayCtrlBit::I2cSlvxDlyEn as u8,
+        0,
+    ),
+    (
+        Register::UserCtrl,
+        UserCtrlBit::FifoEn as u8 | UserCtrlBit::I2cMstEn as u8 | UserCtrlBit::I2cIfDis as u8,
+        0,
+    ),
+    (
+        Register::PwrMgmt1,
+        PwrMgmt1Bit::ClkSel0 as u8,
+        PwrMgmt1Bit::Sleep as u8,
+    ),
+    (Register::XaOffsetH, 0, 0),
+    (Register::XaOffsetL, 0, 0),
+    (Register::YaOffsetH, 0, 0),
+    (Register::YaOffsetL, 0, 0),
+    (Register::ZaOffsetH, 0, 0),
+    (Register::ZaOffsetL, 0, 0),
+];
 
 const BIT0: u8 = 1 << 0;
 const BIT1: u8 = 1 << 1;
 const BIT2: u8 = 1 << 2;
+const BIT3: u8 = 1 << 3;
 const BIT4: u8 = 1 << 4;
 const BIT5: u8 = 1 << 5;
 const BIT6: u8 = 1 << 6;
@@ -128,7 +302,7 @@ pub async fn task(mut mpu: Mpu9250) {
             }
             State::AfterReset => {
                 if mpu.probe().await.is_ok() && 0x01 == mpu.read(Register::PwrMgmt1).await {
-                    info!("MPU9250: reset done");
+                    info!("MPU9250: out of reset");
                     mpu.write(Register::PwrMgmt1, PwrMgmt1Bit::ClkSel0 as u8)
                         .await;
                     mpu.write(
@@ -155,7 +329,23 @@ pub async fn task(mut mpu: Mpu9250) {
                 }
                 continue;
             }
-            State::Configure => {}
+            State::Configure => {
+                mpu.write_config().await;
+                if mpu.validate_config().await.is_err() {
+                    info!("MPU9250: configuration failed, resetting");
+                    Timer::after(Duration::from_micros(1_000_000)).await;
+                    mpu.state = State::Reset;
+                    continue;
+                } else {
+                    info!("MPU9250: configuration done, running...");
+                }
+                mpu.configure_accelerometer();
+                mpu.configure_gyroscope();
+                // TODO grab drdy here
+                mpu.reset_fifo();
+                mpu.state = State::FifoRead;
+            }
+            State::FifoRead => {}
         }
     }
 }
@@ -164,4 +354,5 @@ enum State {
     Reset,
     AfterReset,
     Configure,
+    FifoRead,
 }
