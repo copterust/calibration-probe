@@ -142,57 +142,87 @@ enum Register {
 
 #[repr(u8)]
 enum ConfigBit {
+    /// When set to ‘1’, when the fifo is full, additional writes will not be written to fifo. 
+    /// When set to ‘0’, when the fifo is full, additional writes will be written to the fifo, 
+    /// replacing the oldest data.
     FifoMode = BIT6,
+    /// Gyro: 3600 Hz bandwidth, 0.17 ms delay, 8kHz Fs
     DlpfCfgBypassDlpf8kHz = 7,
 }
 
 #[repr(u8)]
 enum GyroConfigBit {
+    /// Gyro Full Scale Select: +2000 dps
     GyroFsSel2000Dps = BIT4 | BIT3,
-    FchoiceBBypassDlpf = BIT1 | BIT0,
+    /// Disable DLPF.
+    /// The DLPF is configured by DLPF_CFG, when FCHOICE_B [1:0] = 2b00
+    FChoiceBBypassDlpf = BIT1 | BIT0,
 }
 
 #[repr(u8)]
 enum AccelConfigBit {
+    /// Accel Full Scale Select: ±16g
     AccelFsSel16g = BIT4 | BIT3,
 }
 
 #[repr(u8)]
 enum AccelConfig2Bit {
-    AccelFchoiceBBypassDlpf = BIT3,
+    /// Bypass DLPF for accelerometer.
+    /// 1.13 kHz bandwidth, 0.75 ms delay, noise density 250 ug/rtHz, rate 4 kHz
+    AccelFChoiceBBypassDlpf = BIT3,
 }
 
 #[repr(u8)]
 enum FifoEnBit {
+    /// 1 – Write GYRO_XOUT_H and GYRO_XOUT_L to the FIFO at the sample rate;
+    /// If enabled, buffering of data occurs even if data path is in standby.
+    /// 0 – function is disabled
     GyroXout = BIT6,
     GyroYout = BIT5,
     GyroZout = BIT4,
+    /// 1 – write ACCEL_XOUT_H, ACCEL_XOUT_L, ACCEL_YOUT_H, 
+    /// ACCEL_YOUT_L, ACCEL_ZOUT_H, and ACCEL_ZOUT_L to the FIFO at the sample rate;
+    /// 0 – function is disabled
     Accel = BIT3,
 }
 
 #[repr(u8)]
 enum I2cSlv4CtrlBit {
+    /// When enabled via the I2C_MST_DELAY_CTRL, those slaves will only be 
+    /// enabled every (1+I2C_MST_DLY) samples (as determined by the 
+    /// SMPLRT_DIV and DLPF_CFG registers.
     I2cMstDly = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
 }
 
 #[repr(u8)]
 enum I2cMstCtrlBit {
+    /// This bit controls the I2C Master’s transition from one slave read to the next 
+    /// slave read. If 0, there is a restart between reads. If 1, there is a stop between reads.
     I2cMstPNsr = BIT4,
+    /// 400 kHz i2c master clock speed
     I2cMstClk400kHz = 13,
 }
 
 #[repr(u8)]
 enum IntPinCfgBit {
+    /// 1 – The logic level for INT pin is active low
+    /// 0 – The logic level for INT pin is active high
     Actl = BIT7,
 }
 
 #[repr(u8)]
 enum IntEnableBit {
+    /// 1 – Enable Raw Sensor Data Ready interrupt to propagate to interrupt pin.
+    /// The timing of the interrupt can vary depending on the setting in register 36 
+    /// I2C_MST_CTRL, bit [6] WAIT_FOR_ES.
+    /// 0 – function is disabled.
     RawRdyEn = BIT0,
 }
 
 #[repr(u8)]
 enum I2cMstDelayCtrlBit {
+    /// When enabled, slaves 0-4 will only be accessed (1+I2C_MST_DLY) samples 
+    /// as determined by SMPLRT_DIV and DLPF_CFG
     I2cSlvxDlyEn = BIT4 | BIT3 | BIT2 | BIT1 | BIT0,
 }
 
@@ -205,7 +235,7 @@ const CONFIG: [(Register, u8, u8); 18] = [
     (
         Register::GyroConfig,
         GyroConfigBit::GyroFsSel2000Dps as u8,
-        GyroConfigBit::FchoiceBBypassDlpf as u8,
+        GyroConfigBit::FChoiceBBypassDlpf as u8,
     ),
     (
         Register::AccelConfig,
@@ -214,15 +244,15 @@ const CONFIG: [(Register, u8, u8); 18] = [
     ),
     (
         Register::AccelConfig2,
-        AccelConfig2Bit::AccelFchoiceBBypassDlpf as u8,
+        AccelConfig2Bit::AccelFChoiceBBypassDlpf as u8,
         0,
     ),
     (
         Register::FifoEn,
-        FifoEnBit::GyroXout as u8
+        FifoEnBit::Accel as u8
+            | FifoEnBit::GyroXout as u8
             | FifoEnBit::GyroYout as u8
-            | FifoEnBit::GyroZout as u8
-            | FifoEnBit::Accel as u8,
+            | FifoEnBit::GyroZout as u8,
         0,
     ),
     (Register::I2cSlv4Ctrl, I2cSlv4CtrlBit::I2cMstDly as u8, 0),
@@ -268,19 +298,43 @@ const BIT7: u8 = 1 << 7;
 #[allow(unused)]
 #[repr(u8)]
 enum PwrMgmt1Bit {
+    /// 1 – Reset the internal registers and restores the default settings. Write a 1 to 
+    /// set the reset, the bit will auto clear.
     HReset = BIT7,
+    /// When set, the chip is set to sleep mode (After OTP loads, the PU_SLEEP_MODE bit
+    /// will be written here
     Sleep = BIT6,
+    /// Auto selects the best available clock source – PLL if ready, else use the Internal oscillator
     ClkSel0 = BIT0,
 }
 
 #[allow(unused)]
 #[repr(u8)]
 enum UserCtrlBit {
+    /// 1 – Enable FIFO operation mode. 
+    /// 0 – Disable FIFO access from serial interface. To disable FIFO writes by dma,
+    /// use FIFO_EN register. To disable possible FIFO writes from DMP, disable the DMP.
     FifoEn = BIT6,
+    /// 1 – Enable the I2C Master I/F module; pins ES_DA and ES_SCL are isolated from
+    /// pins SDA/SDI and SCL/ SCLK.
+    /// 0 – Disable I2C Master I/F module; pins ES_DA and ES_SCL are logically 
+    /// driven by pins SDA/SDI and SCL/ SCLK.
+    /// NOTE: DMP will run when enabled, even if all internal sensors are disabled, 
+    /// except when the sample rate is set to 8Khz
     I2cMstEn = BIT5,
+    /// 1 – Reset I2C Slave module and put the serial interface in SPI mode only. 
+    /// This bit auto clears after one clock cycle
     I2cIfDis = BIT4,
+    /// 1 – Reset FIFO module. Reset is asynchronous. This bit auto clears after one clock cycle.
     FifoRst = BIT2,
+    /// 1 – Reset I2C Master module. Reset is asynchronous. This bit auto clears after one clock cycle.
+    /// NOTE: This bit should only be set when the I2C master has hung. If this bit 
+    /// is set during an active I2C master transaction, the I2C slave will hang, which 
+    /// will require the host to reset the slave
     I2cMstRst = BIT1,
+    /// 1 – Reset all gyro digital signal path, accel digital signal path, and temp 
+    /// digital signal path. This bit also clears all the sensor registers. 
+    /// SIG_COND_RST is a pulse of one clk8M wide
     SigCondRst = BIT0,
 }
 
