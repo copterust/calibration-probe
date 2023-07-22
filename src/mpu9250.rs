@@ -91,13 +91,25 @@ impl Mpu9250 {
     }
 
     async fn fifo_read_count(&mut self) -> u16 {
-        let mut fifo_count_buf = [0u8; 3];
+        let mut fifo_count_buf = [Register::FifoCountH.read(), 0, 0];
         let send_buffer = [Register::FifoCountH.read(), 0, 0];
         self.spi
             .transfer(&mut fifo_count_buf, &send_buffer)
             .await
             .unwrap();
+        info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
         return ((fifo_count_buf[1] as u16) << 8) | fifo_count_buf[2] as u16;
+    }
+
+    async fn test(&mut self) {
+        let mut fifo_count_buf = [0; 14];
+        let mut send_buffer = [0; 14];
+        send_buffer[0] = Register::AccelXOutH.read();
+        self.spi
+            .transfer(&mut fifo_count_buf, &send_buffer)
+            .await
+            .unwrap();
+        info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
     }
 
     async fn reset_fifo(&mut self) {
@@ -141,6 +153,7 @@ enum Register {
     ZaOffsetL = 0x7E,
 
     FifoCountH = 0x72,
+    AccelXOutH = 0x3B,
 }
 
 #[repr(u8)]
@@ -444,6 +457,7 @@ pub async fn task(mut mpu: Mpu9250) {
             State::FifoRead => {
                 let fifo_count = mpu.fifo_read_count().await;
                 info!("MPU9250: FIFO count {}", fifo_count);
+                mpu.test().await;
                 Timer::after(Duration::from_micros(1_000_000)).await;
             }
         }
