@@ -50,6 +50,7 @@ impl Mpu9250 {
         self.ncs.set_high();
         buffer[1]
     }
+
     fn configure_accelerometer(&self) {}
     fn configure_gyroscope(&self) {}
 
@@ -93,10 +94,12 @@ impl Mpu9250 {
     async fn fifo_read_count(&mut self) -> u16 {
         let mut fifo_count_buf = [Register::FifoCountH.read(), 0, 0];
         let send_buffer = [Register::FifoCountH.read(), 0, 0];
+        self.ncs.set_low();
         self.spi
             .transfer(&mut fifo_count_buf, &send_buffer)
             .await
             .unwrap();
+        self.ncs.set_high();
         info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
         return ((fifo_count_buf[1] as u16) << 8) | fifo_count_buf[2] as u16;
     }
@@ -105,10 +108,12 @@ impl Mpu9250 {
         let mut fifo_count_buf = [0; 14];
         let mut send_buffer = [0; 14];
         send_buffer[0] = Register::AccelXOutH.read();
+        self.ncs.set_low();
         self.spi
             .transfer(&mut fifo_count_buf, &send_buffer)
             .await
             .unwrap();
+        self.ncs.set_high();
         info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
     }
 
@@ -452,13 +457,13 @@ pub async fn task(mut mpu: Mpu9250) {
                         .unwrap();
                 }
                 mpu.reset_fifo().await;
+                info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
                 Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
-                let fifo_count = mpu.fifo_read_count().await;
-                info!("MPU9250: FIFO count {}", fifo_count);
+                info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
                 mpu.test().await;
-                Timer::after(Duration::from_micros(1_000_000)).await;
+                Timer::after(Duration::from_micros(100_000)).await;
             }
         }
     }
