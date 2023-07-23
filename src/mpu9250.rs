@@ -133,6 +133,7 @@ impl Mpu9250 {
 }
 
 #[repr(u8)]
+#[allow(unused)]
 #[derive(Copy, Clone, Debug, Format)]
 enum Register {
     WhoAmI = 0x75,
@@ -482,9 +483,12 @@ pub async fn task(mut mpu: Mpu9250) {
                 let int = drdy.wait_for_falling_edge();
                 let timer = Timer::after(Duration::from_micros(100_000));
 
-                select(int, timer).await;
-
-                // let timestamp = DATA_READY.wait().await;
+                match select(int, timer).await {
+                    Either::First(_) => {}
+                    Either::Second(_) => {
+                        info!("MPU9250: wake-up by watchdog");
+                    }
+                }
                 let available = mpu.fifo_read_count().await;
                 if available >= 512 {
                     info!("MPU9250: FIFO overflow");
