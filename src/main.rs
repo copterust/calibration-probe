@@ -49,7 +49,7 @@ async fn main(spawner: Spawner) {
     );
 
     let mpu: mpu9250::Mpu9250 =
-        mpu9250::new(spi, p.PB0.degrade(), p.PA11.degrade(), p.EXTI13.degrade()); // D3
+        mpu9250::new(spi, p.PA0.degrade(), p.PA9.degrade(), p.EXTI13.degrade()); // D1
     spawner.spawn(mpu9250::task(mpu)).unwrap();
 
     loop {

@@ -537,7 +537,7 @@ pub async fn task(mut mpu: Mpu9250) {
                     info!("MPU9250: FIFO empty");
                 } else {
                     let samples = available as usize / core::mem::size_of::<FifoPacket>();
-                    mpu.read_fifo(Instant::from_millis(0), samples).await;
+                    mpu.read_fifo(timestamp, samples).await;
                 }
             }
         }
