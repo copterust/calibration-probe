@@ -1,5 +1,5 @@
 use defmt::*;
-use embassy_executor::Spawner;
+use embassy_futures::select::*;
 use embassy_stm32::{
     exti::{AnyChannel, ExtiInput},
     gpio::{AnyPin, Input, Level, Output, Pull, Speed},
@@ -418,6 +418,10 @@ struct FifoPacket {
 #[embassy_executor::task]
 pub async fn task(mut mpu: Mpu9250) {
     info!("MPU9250: task started");
+    let (pin, ch) = mpu.drdy.take().unwrap();
+    let drdy_input = Input::new(pin, Pull::None);
+    let mut drdy = ExtiInput::new(drdy_input, ch);
+
     loop {
         match mpu.state {
             State::Reset => {
@@ -470,18 +474,17 @@ pub async fn task(mut mpu: Mpu9250) {
                 mpu.configure_gyroscope();
                 // TODO init mag
                 mpu.state = State::FifoRead;
-                if let Some((pin, ch)) = mpu.drdy.take() {
-                    Spawner::for_current_executor()
-                        .await
-                        .spawn(data_ready(pin, ch))
-                        .unwrap();
-                }
                 mpu.reset_fifo().await;
                 info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
                 Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
-                let timestamp = DATA_READY.wait().await;
+                let int = drdy.wait_for_falling_edge();
+                let timer = Timer::after(Duration::from_micros(100_000));
+
+                select(int, timer).await;
+
+                // let timestamp = DATA_READY.wait().await;
                 let available = mpu.fifo_read_count().await;
                 if available >= 512 {
                     info!("MPU9250: FIFO overflow");
@@ -490,28 +493,9 @@ pub async fn task(mut mpu: Mpu9250) {
                     info!("MPU9250: FIFO empty");
                 } else {
                     let samples = available as usize / core::mem::size_of::<FifoPacket>();
-                    mpu.read_fifo(timestamp, samples).await;
+                    mpu.read_fifo(Instant::from_millis(0), samples).await;
                 }
             }
-        }
-    }
-}
-
-static DATA_READY: Signal<CriticalSectionRawMutex, Instant> = Signal::new();
-
-#[embassy_executor::task]
-async fn data_ready(pin: AnyPin, ch: AnyChannel) {
-    let drdy_input = Input::new(pin, Pull::None);
-    let mut drdy = ExtiInput::new(drdy_input, ch);
-    let mut drdy_count = 0;
-    let fifo_min_samples = 15;
-    loop {
-        drdy.wait_for_falling_edge().await; // TODO check
-        drdy_count += 1;
-        if drdy_count >= fifo_min_samples {
-            let timestamp = Instant::now();
-            drdy_count -= fifo_min_samples;
-            DATA_READY.signal(timestamp);
         }
     }
 }
