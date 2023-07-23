@@ -28,6 +28,9 @@ impl Mpu9250 {
     async fn write(&mut self, reg: Register, value: u8) {
         let send_buffer = [reg.write(), value];
         let mut buffer: [u8; 2] = [0x0; 2];
+        let mut config = self.spi.get_current_config();
+        config.frequency = 1_000_000;
+        self.spi.reconfigure(config);
 
         self.ncs.set_low();
         self.spi.transfer(&mut buffer, &send_buffer).await.unwrap();
@@ -48,6 +51,9 @@ impl Mpu9250 {
     async fn read(&mut self, reg: Register) -> u8 {
         let mut buffer: [u8; 2] = [0x0; 2];
         let send_buffer = [reg.read(), 0x0];
+        let mut config = self.spi.get_current_config();
+        config.frequency = 1_000_000;
+        self.spi.reconfigure(config);
         self.ncs.set_low();
         self.spi.transfer(&mut buffer, &send_buffer).await.unwrap();
         self.ncs.set_high();
@@ -413,7 +419,6 @@ pub fn new(
 ) -> Mpu9250 {
     let ncs = Output::new(ncs, Level::High, Speed::Low);
     let samples = (1250. / (1000000. / (1.0e6 / (1.0e6 / 8000.)))) as u32;
-    info!("{}", samples);
     Mpu9250 {
         spi,
         ncs,
