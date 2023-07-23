@@ -60,6 +60,7 @@ impl Mpu9250 {
         let mut send_buffer = [0u8; 513];
         send_buffer[0] = Register::FifoRW.read();
         self.ncs.set_low();
+
         self.spi
             .transfer(
                 &mut buffer[0..transfer_size],
@@ -527,7 +528,6 @@ pub async fn task(mut mpu: Mpu9250) {
                     info!("MPU9250: FIFO empty");
                 } else {
                     let samples = available as usize / core::mem::size_of::<FifoPacket>();
-                    info!("{}", samples);
                     mpu.read_fifo(Instant::from_millis(0), samples).await;
                 }
             }
