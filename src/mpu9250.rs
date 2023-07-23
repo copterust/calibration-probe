@@ -59,6 +59,10 @@ impl Mpu9250 {
         let mut buffer = [0u8; 513];
         let mut send_buffer = [0u8; 513];
         send_buffer[0] = Register::FifoRW.read();
+        let mut config = self.spi.get_current_config();
+        config.frequency = 4_000_000;
+        self.spi.reconfigure(config);
+
         self.ncs.set_low();
 
         self.spi
