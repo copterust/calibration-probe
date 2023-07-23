@@ -6,7 +6,8 @@ use embassy_stm32::{
     peripherals::{DMA1_CH2, DMA1_CH3, SPI1},
     spi::Spi,
 };
-use embassy_time::{Duration, Timer};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
+use embassy_time::{Duration, Instant, Timer};
 
 pub struct Mpu9250 {
     spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>,
@@ -49,6 +50,22 @@ impl Mpu9250 {
         self.spi.transfer(&mut buffer, &send_buffer).await.unwrap();
         self.ncs.set_high();
         buffer[1]
+    }
+
+    async fn read_fifo(&mut self, timestamp: Instant, samples: usize) {
+        let transfer_size = core::cmp::min(samples * core::mem::size_of::<FifoPacket>() + 1, 512);
+        let mut buffer = [0u8; 513];
+        let mut send_buffer = [0u8; 513];
+        send_buffer[0] = Register::FifoRW.read();
+        self.ncs.set_low();
+        self.spi
+            .transfer(
+                &mut buffer[0..transfer_size],
+                &send_buffer[0..transfer_size],
+            )
+            .await
+            .unwrap();
+        self.ncs.set_high();
     }
 
     fn configure_accelerometer(&self) {}
@@ -100,21 +117,7 @@ impl Mpu9250 {
             .await
             .unwrap();
         self.ncs.set_high();
-        info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
         return ((fifo_count_buf[1] as u16) << 8) | fifo_count_buf[2] as u16;
-    }
-
-    async fn test(&mut self) {
-        let mut fifo_count_buf = [0; 14];
-        let mut send_buffer = [0; 14];
-        send_buffer[0] = Register::AccelXOutH.read();
-        self.ncs.set_low();
-        self.spi
-            .transfer(&mut fifo_count_buf, &send_buffer)
-            .await
-            .unwrap();
-        self.ncs.set_high();
-        info!("sent {:?} recv {:?}", send_buffer, fifo_count_buf);
     }
 
     async fn reset_fifo(&mut self) {
@@ -159,6 +162,7 @@ enum Register {
 
     FifoCountH = 0x72,
     AccelXOutH = 0x3B,
+    FifoRW = 0x74,
 }
 
 #[repr(u8)]
@@ -395,6 +399,22 @@ pub fn new(
     }
 }
 
+#[repr(C)]
+struct FifoPacket {
+    accel_xout_h: u8,
+    accel_xout_l: u8,
+    accel_yout_h: u8,
+    accel_yout_l: u8,
+    accel_zout_h: u8,
+    accel_zout_l: u8,
+    gyro_xout_h: u8,
+    gyro_xout_l: u8,
+    gyro_yout_h: u8,
+    gyro_yout_l: u8,
+    gyro_zout_h: u8,
+    gyro_zout_l: u8,
+}
+
 #[embassy_executor::task]
 pub async fn task(mut mpu: Mpu9250) {
     info!("MPU9250: task started");
@@ -461,21 +481,38 @@ pub async fn task(mut mpu: Mpu9250) {
                 Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
-                info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
-                mpu.test().await;
-                Timer::after(Duration::from_micros(100_000)).await;
+                let timestamp = DATA_READY.wait().await;
+                let available = mpu.fifo_read_count().await;
+                if available >= 512 {
+                    info!("MPU9250: FIFO overflow");
+                    mpu.reset_fifo().await;
+                } else if available == 0 {
+                    info!("MPU9250: FIFO empty");
+                } else {
+                    let samples = available as usize / core::mem::size_of::<FifoPacket>();
+                    mpu.read_fifo(timestamp, samples).await;
+                }
             }
         }
     }
 }
 
+static DATA_READY: Signal<CriticalSectionRawMutex, Instant> = Signal::new();
+
 #[embassy_executor::task]
 async fn data_ready(pin: AnyPin, ch: AnyChannel) {
     let drdy_input = Input::new(pin, Pull::None);
     let mut drdy = ExtiInput::new(drdy_input, ch);
+    let mut drdy_count = 0;
+    let fifo_min_samples = 15;
     loop {
-        drdy.wait_for_falling_edge().await;
-        // info!("MPU9250: interrupt");
+        drdy.wait_for_falling_edge().await; // TODO check
+        drdy_count += 1;
+        if drdy_count >= fifo_min_samples {
+            let timestamp = Instant::now();
+            drdy_count -= fifo_min_samples;
+            DATA_READY.signal(timestamp);
+        }
     }
 }
 
