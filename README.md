@@ -32,5 +32,6 @@ MPU9250 Module:
 9. NCS
 10. FSYNC
 
-NUCLEO-F303K8
+NUCLEO-F303K8:
+* USB points right
 ```

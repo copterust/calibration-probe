@@ -19,7 +19,7 @@ async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(Default::default());
 
     spawner.spawn(led_state::task(p.PB3.degrade())).unwrap();
-    led_state::idle();
+    led_state::error();
 
     let mut usart_config = UsartConfig::default();
     usart_config.baudrate = 460800;
