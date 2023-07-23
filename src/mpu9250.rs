@@ -506,8 +506,6 @@ pub async fn task(mut mpu: Mpu9250) {
                 // TODO init mag
                 mpu.state = State::FifoRead;
                 mpu.reset_fifo().await;
-                info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
-                // Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
                 let int = drdy.wait_for_falling_edge();

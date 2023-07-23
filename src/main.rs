@@ -10,7 +10,6 @@ use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::{exti::Channel, time::Hertz};
 use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _};
-
 mod led_state;
 mod mpu9250;
 mod serial;
@@ -49,7 +48,7 @@ async fn main(spawner: Spawner) {
     );
 
     let mpu: mpu9250::Mpu9250 =
-        mpu9250::new(spi, p.PA0.degrade(), p.PA9.degrade(), p.EXTI13.degrade()); // D1
+        mpu9250::new(spi, p.PA0.degrade(), p.PA9.degrade(), p.EXTI9.degrade()); // D1
     spawner.spawn(mpu9250::task(mpu)).unwrap();
 
     loop {
