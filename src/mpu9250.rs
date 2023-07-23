@@ -1,3 +1,5 @@
+/// Recreating https://github.com/PX4/PX4-Autopilot/tree/main/src/drivers/imu/invensense/mpu9250
+/// in Rust and embassy-rs
 use defmt::*;
 use embassy_futures::select::*;
 use embassy_stm32::{
@@ -6,7 +8,6 @@ use embassy_stm32::{
     peripherals::{DMA1_CH2, DMA1_CH3, SPI1},
     spi::Spi,
 };
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Duration, Instant, Timer};
 
 pub struct Mpu9250 {
@@ -14,6 +15,7 @@ pub struct Mpu9250 {
     ncs: Output<'static, AnyPin>,
     drdy: Option<(AnyPin, AnyChannel)>,
     state: State,
+    fifo_gyro_samples: u32,
 }
 
 impl Mpu9250 {
@@ -52,7 +54,7 @@ impl Mpu9250 {
         buffer[1]
     }
 
-    async fn read_fifo(&mut self, timestamp: Instant, samples: usize) {
+    async fn read_fifo(&mut self, _timestamp: Instant, samples: usize) {
         let transfer_size = core::cmp::min(samples * core::mem::size_of::<FifoPacket>() + 1, 512);
         let mut buffer = [0u8; 513];
         let mut send_buffer = [0u8; 513];
@@ -391,12 +393,14 @@ pub fn new(
     ch: AnyChannel,
 ) -> Mpu9250 {
     let ncs = Output::new(ncs, Level::High, Speed::Low);
-
+    let samples = (1250. / (1000000. / (1.0e6 / (1.0e6 / 8000.)))) as u32;
+    info!("{}", samples);
     Mpu9250 {
         spi,
         ncs,
         drdy: Some((drdy, ch)),
         state: State::Reset,
+        fifo_gyro_samples: samples,
     }
 }
 
@@ -422,6 +426,8 @@ pub async fn task(mut mpu: Mpu9250) {
     let (pin, ch) = mpu.drdy.take().unwrap();
     let drdy_input = Input::new(pin, Pull::None);
     let mut drdy = ExtiInput::new(drdy_input, ch);
+    let mut timestamp = Instant::now();
+    let mut drdy_count = 0;
 
     loop {
         match mpu.state {
@@ -481,10 +487,17 @@ pub async fn task(mut mpu: Mpu9250) {
             }
             State::FifoRead => {
                 let int = drdy.wait_for_falling_edge();
-                let timer = Timer::after(Duration::from_micros(100_000));
+                let wdt = Timer::after(Duration::from_micros(100_000));
 
-                match select(int, timer).await {
-                    Either::First(_) => {}
+                match select(int, wdt).await {
+                    Either::First(_) => {
+                        drdy_count += 1;
+                        if !(drdy_count >= mpu.fifo_gyro_samples) {
+                            continue;
+                        }
+                        drdy_count -= mpu.fifo_gyro_samples;
+                        timestamp = Instant::now();
+                    }
                     Either::Second(_) => {
                         info!("MPU9250: wake-up by watchdog");
                     }
@@ -493,10 +506,13 @@ pub async fn task(mut mpu: Mpu9250) {
                 if available >= 512 {
                     info!("MPU9250: FIFO overflow");
                     mpu.reset_fifo().await;
+                    drdy_count = 0;
+                    timestamp = Instant::from_micros(0);
                 } else if available == 0 {
                     info!("MPU9250: FIFO empty");
                 } else {
                     let samples = available as usize / core::mem::size_of::<FifoPacket>();
+                    info!("{}", samples);
                     mpu.read_fifo(Instant::from_millis(0), samples).await;
                 }
             }
