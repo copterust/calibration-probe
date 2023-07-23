@@ -130,7 +130,21 @@ impl Mpu9250 {
             UserCtrlBit::FifoEn as u8,
         )
         .await;
-        self.write_config().await;
+        self.bits_set_clear(
+            Register::FifoEn,
+            FifoEnBit::Accel as u8
+                | FifoEnBit::GyroXout as u8
+                | FifoEnBit::GyroYout as u8
+                | FifoEnBit::GyroZout as u8,
+            0,
+        )
+        .await;
+        self.bits_set_clear(
+            Register::UserCtrl,
+            UserCtrlBit::FifoEn as u8 | UserCtrlBit::I2cMstEn as u8 | UserCtrlBit::I2cIfDis as u8,
+            0,
+        )
+        .await;
     }
 }
 
@@ -483,7 +497,7 @@ pub async fn task(mut mpu: Mpu9250) {
                 mpu.state = State::FifoRead;
                 mpu.reset_fifo().await;
                 info!("MPU9250: FIFO read count {}", mpu.fifo_read_count().await);
-                Timer::after(Duration::from_micros(100_000)).await;
+                // Timer::after(Duration::from_micros(100_000)).await;
             }
             State::FifoRead => {
                 let int = drdy.wait_for_falling_edge();
@@ -508,6 +522,7 @@ pub async fn task(mut mpu: Mpu9250) {
                     mpu.reset_fifo().await;
                     drdy_count = 0;
                     timestamp = Instant::from_micros(0);
+                    continue;
                 } else if available == 0 {
                     info!("MPU9250: FIFO empty");
                 } else {
