@@ -43,7 +43,6 @@ async fn main(spawner: Spawner) {
         p.PB4, // D12 AD0
         p.DMA1_CH3,
         p.DMA1_CH2,
-        Hertz(1_000_000),
         SpiConfig::default(),
     );
 

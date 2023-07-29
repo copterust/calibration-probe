@@ -247,7 +247,7 @@ dependencies = [
 [[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "defmt",
  "embassy-futures 0.1.0 (git+https://github.com/copterust/embassy.git)",
@@ -264,7 +264,7 @@ dependencies = [
 [[package]]
 name = "embassy-executor"
 version = "0.2.0"
-source = "git+https://github.com/embassy-rs/embassy#18b9b6c780b46165ead1de59ce258bd78786bdcb"
+source = "git+https://github.com/embassy-rs/embassy#fcbfd224a729c38d5ff94d94a25321a819254630"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "cortex-m",
@@ -279,12 +279,12 @@ dependencies = [
 [[package]]
 name = "embassy-futures"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 
 [[package]]
 name = "embassy-futures"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy#18b9b6c780b46165ead1de59ce258bd78786bdcb"
+source = "git+https://github.com/embassy-rs/embassy#fcbfd224a729c38d5ff94d94a25321a819254630"
 dependencies = [
  "defmt",
 ]
@@ -292,7 +292,7 @@ dependencies = [
 [[package]]
 name = "embassy-hal-common"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "cortex-m",
  "critical-section 1.1.1",
@@ -303,7 +303,7 @@ dependencies = [
 [[package]]
 name = "embassy-macros"
 version = "0.2.0"
-source = "git+https://github.com/embassy-rs/embassy#18b9b6c780b46165ead1de59ce258bd78786bdcb"
+source = "git+https://github.com/embassy-rs/embassy#fcbfd224a729c38d5ff94d94a25321a819254630"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -314,7 +314,7 @@ dependencies = [
 [[package]]
 name = "embassy-net-driver"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "defmt",
 ]
@@ -322,7 +322,7 @@ dependencies = [
 [[package]]
 name = "embassy-stm32"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "bit_field",
@@ -360,7 +360,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.2.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "cfg-if",
  "critical-section 1.1.1",
@@ -373,7 +373,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.2.0"
-source = "git+https://github.com/embassy-rs/embassy#18b9b6c780b46165ead1de59ce258bd78786bdcb"
+source = "git+https://github.com/embassy-rs/embassy#fcbfd224a729c38d5ff94d94a25321a819254630"
 dependencies = [
  "cfg-if",
  "critical-section 1.1.1",
@@ -386,7 +386,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.1.2"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "cfg-if",
@@ -399,7 +399,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.1.2"
-source = "git+https://github.com/embassy-rs/embassy#18b9b6c780b46165ead1de59ce258bd78786bdcb"
+source = "git+https://github.com/embassy-rs/embassy#fcbfd224a729c38d5ff94d94a25321a819254630"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "cfg-if",
@@ -413,7 +413,7 @@ dependencies = [
 [[package]]
 name = "embassy-usb-driver"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#60f578b703ebb765349a98330e64290542aa8426"
+source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
 dependencies = [
  "defmt",
 ]

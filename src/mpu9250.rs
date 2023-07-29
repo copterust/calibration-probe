@@ -7,8 +7,12 @@ use embassy_stm32::{
     gpio::{AnyPin, Input, Level, Output, Pull, Speed},
     peripherals::{DMA1_CH2, DMA1_CH3, SPI1},
     spi::Spi,
+    time::Hertz,
 };
 use embassy_time::{Duration, Instant, Timer};
+
+const REGISTER_FREQ: u32 = 1_000_000;
+const FIFO_FREQ: u32 = 4_000_000;
 
 pub struct Mpu9250 {
     spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>,
@@ -25,13 +29,17 @@ impl Mpu9250 {
         Timer::after(Duration::from_micros(100_000)).await;
     }
 
+    fn set_spi_frequency(&mut self, freq: u32) {
+        let mut config: embassy_stm32::spi::Config = self.spi.get_current_config();
+        config.frequency = Hertz(freq);
+        self.spi.reconfigure(config);
+    }
+
     async fn write(&mut self, reg: Register, value: u8) {
         let send_buffer = [reg.write(), value];
         let mut buffer: [u8; 2] = [0x0; 2];
-        let mut config = self.spi.get_current_config();
-        config.frequency = 1_000_000;
-        self.spi.reconfigure(config);
 
+        self.set_spi_frequency(REGISTER_FREQ);
         self.ncs.set_low();
         self.spi.transfer(&mut buffer, &send_buffer).await.unwrap();
         self.ncs.set_high();
@@ -51,9 +59,8 @@ impl Mpu9250 {
     async fn read(&mut self, reg: Register) -> u8 {
         let mut buffer: [u8; 2] = [0x0; 2];
         let send_buffer = [reg.read(), 0x0];
-        let mut config = self.spi.get_current_config();
-        config.frequency = 1_000_000;
-        self.spi.reconfigure(config);
+
+        self.set_spi_frequency(REGISTER_FREQ);
         self.ncs.set_low();
         self.spi.transfer(&mut buffer, &send_buffer).await.unwrap();
         self.ncs.set_high();
@@ -64,13 +71,11 @@ impl Mpu9250 {
         let transfer_size = core::cmp::min(samples * core::mem::size_of::<FifoPacket>() + 1, 512);
         let mut buffer = [0u8; 513];
         let mut send_buffer = [0u8; 513];
+
         send_buffer[0] = Register::FifoRW.read();
-        let mut config = self.spi.get_current_config();
-        config.frequency = 4_000_000;
-        self.spi.reconfigure(config);
 
+        self.set_spi_frequency(FIFO_FREQ);
         self.ncs.set_low();
-
         self.spi
             .transfer(
                 &mut buffer[0..transfer_size],
