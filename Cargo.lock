@@ -245,14 +245,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "document-features"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e493c573fce17f00dcab13b6ac057994f3ce17d1af4dc39bfd482b83c6eb6157"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
- "embassy-futures 0.1.0 (git+https://github.com/copterust/embassy.git)",
- "embassy-sync 0.2.0 (git+https://github.com/copterust/embassy.git)",
- "embassy-time 0.1.2 (git+https://github.com/copterust/embassy.git)",
+ "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.11",
  "embedded-hal-async",
@@ -279,7 +288,7 @@ dependencies = [
 [[package]]
 name = "embassy-futures"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 
 [[package]]
 name = "embassy-futures"
@@ -290,9 +299,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy-hal-common"
+name = "embassy-hal-internal"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "cortex-m",
  "critical-section 1.1.1",
@@ -314,7 +323,7 @@ dependencies = [
 [[package]]
 name = "embassy-net-driver"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
 ]
@@ -322,7 +331,7 @@ dependencies = [
 [[package]]
 name = "embassy-stm32"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "bit_field",
@@ -332,12 +341,13 @@ dependencies = [
  "cortex-m-rt",
  "critical-section 1.1.1",
  "defmt",
+ "document-features",
  "embassy-embedded-hal",
- "embassy-futures 0.1.0 (git+https://github.com/copterust/embassy.git)",
- "embassy-hal-common",
+ "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-hal-internal",
  "embassy-net-driver",
- "embassy-sync 0.2.0 (git+https://github.com/copterust/embassy.git)",
- "embassy-time 0.1.2 (git+https://github.com/copterust/embassy.git)",
+ "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
  "embassy-usb-driver",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.11",
@@ -360,7 +370,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.2.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "cfg-if",
  "critical-section 1.1.1",
@@ -386,7 +396,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.1.2"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "cfg-if",
@@ -413,7 +423,7 @@ dependencies = [
 [[package]]
 name = "embassy-usb-driver"
 version = "0.1.0"
-source = "git+https://github.com/copterust/embassy.git#bb65357cc9e4de3b89ca4e063826fbf00ed869bc"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
 ]
@@ -573,6 +583,12 @@ name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
+name = "litrs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9275e0933cf8bb20f008924c0cb07a0692fe54d8064996520bf998de9eb79aa"
 
 [[package]]
 name = "lock_api"

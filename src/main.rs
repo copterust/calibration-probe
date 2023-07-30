@@ -7,7 +7,7 @@ use embassy_stm32::bind_interrupts;
 use embassy_stm32::gpio::Pin;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::usart::{Config as UsartConfig, Uart};
-use embassy_stm32::{exti::Channel, time::Hertz};
+use embassy_stm32::{exti::Channel};
 use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _};
 mod led_state;
