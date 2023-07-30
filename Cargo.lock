@@ -256,12 +256,12 @@ dependencies = [
 [[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
- "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
- "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
- "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
+ "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
+ "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.11",
  "embedded-hal-async",
@@ -288,7 +288,7 @@ dependencies = [
 [[package]]
 name = "embassy-futures"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 
 [[package]]
 name = "embassy-futures"
@@ -301,7 +301,7 @@ dependencies = [
 [[package]]
 name = "embassy-hal-internal"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "cortex-m",
  "critical-section 1.1.1",
@@ -323,7 +323,7 @@ dependencies = [
 [[package]]
 name = "embassy-net-driver"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
 ]
@@ -331,7 +331,7 @@ dependencies = [
 [[package]]
 name = "embassy-stm32"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "bit_field",
@@ -343,11 +343,11 @@ dependencies = [
  "defmt",
  "document-features",
  "embassy-embedded-hal",
- "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-futures 0.1.0 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
  "embassy-hal-internal",
  "embassy-net-driver",
- "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
- "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy.git?rev=105aa8f)",
+ "embassy-sync 0.2.0 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
+ "embassy-time 0.1.2 (git+https://github.com/embassy-rs/embassy?rev=105aa8f)",
  "embassy-usb-driver",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.11",
@@ -370,7 +370,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.2.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "cfg-if",
  "critical-section 1.1.1",
@@ -396,7 +396,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.1.2"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "cfg-if",
@@ -423,7 +423,7 @@ dependencies = [
 [[package]]
 name = "embassy-usb-driver"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
+source = "git+https://github.com/embassy-rs/embassy?rev=105aa8f#105aa8f45212139e085ad5636ddfa91b1911970c"
 dependencies = [
  "defmt",
 ]
