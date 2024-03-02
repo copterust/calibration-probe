@@ -9,6 +9,7 @@ use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::exti::Channel;
 use embassy_time::{Duration, Timer};
+use defmt::*;
 use {defmt_rtt as _, panic_probe as _};
 mod led_state;
 mod mpu9250;
@@ -32,7 +33,7 @@ async fn main(spawner: Spawner) {
         p.DMA1_CH7,
         p.DMA1_CH6,
         usart_config,
-    );
+    ).unwrap();
 
     spawner.spawn(serial::echo_task(usart)).unwrap();
 
@@ -45,13 +46,13 @@ async fn main(spawner: Spawner) {
         p.DMA1_CH2,
         SpiConfig::default(),
     );
-
     let mpu: mpu9250::Mpu9250 =
         mpu9250::new(spi, p.PA0.degrade(), p.PA9.degrade(), p.EXTI9.degrade()); // D1
     spawner.spawn(mpu9250::task(mpu)).unwrap();
 
     loop {
-        Timer::after(Duration::from_micros(1_000_000)).await;
+        info!("bam");
+        Timer::after(Duration::from_millis(1_000)).await;
     }
 }
 

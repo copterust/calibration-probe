@@ -4,7 +4,7 @@ use defmt::*;
 use embassy_futures::select::*;
 use embassy_stm32::{
     exti::{AnyChannel, ExtiInput},
-    gpio::{AnyPin, Input, Level, Output, Pull, Speed},
+    gpio::{AnyPin, Level, Output, Pull, Speed},
     peripherals::{DMA1_CH2, DMA1_CH3, SPI1},
     spi::Spi,
     time::Hertz,
@@ -16,7 +16,7 @@ const FIFO_FREQ: u32 = 4_000_000;
 
 pub struct Mpu9250 {
     spi: Spi<'static, SPI1, DMA1_CH3, DMA1_CH2>,
-    ncs: Output<'static, AnyPin>,
+    ncs: Output<'static>,
     drdy: Option<(AnyPin, AnyChannel)>,
     state: State,
     fifo_gyro_samples: u32,
@@ -32,7 +32,7 @@ impl Mpu9250 {
     fn set_spi_frequency(&mut self, freq: u32) {
         let mut config: embassy_stm32::spi::Config = self.spi.get_current_config();
         config.frequency = Hertz(freq);
-        self.spi.reconfigure(config);
+        self.spi.set_config(&config).expect("change SPI speed");
     }
 
     async fn write(&mut self, reg: Register, value: u8) {
@@ -453,8 +453,7 @@ struct FifoPacket {
 pub async fn task(mut mpu: Mpu9250) {
     info!("MPU9250: task started");
     let (pin, ch) = mpu.drdy.take().unwrap();
-    let drdy_input = Input::new(pin, Pull::None);
-    let mut drdy = ExtiInput::new(drdy_input, ch);
+    let mut drdy = ExtiInput::new(pin, ch, Pull::None);
     let mut timestamp = Instant::now();
     let mut drdy_count = 0;
 
