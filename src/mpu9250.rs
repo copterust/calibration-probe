@@ -1,5 +1,39 @@
 /// Recreating https://github.com/PX4/PX4-Autopilot/tree/main/src/drivers/imu/invensense/mpu9250
 /// in Rust and embassy-rs
+
+/****************************************************************************
+ *
+ *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name PX4 nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
 use defmt::*;
 use embassy_futures::select::*;
 use embassy_stm32::{
@@ -10,6 +44,8 @@ use embassy_stm32::{
     time::Hertz,
 };
 use embassy_time::{Duration, Instant, Timer};
+
+use crate::{FIFO_BUF_SIZE, MPU_PIPE};
 
 const REGISTER_FREQ: u32 = 1_000_000;
 const FIFO_FREQ: u32 = 4_000_000;
@@ -68,9 +104,9 @@ impl Mpu9250 {
     }
 
     async fn read_fifo(&mut self, _timestamp: Instant, samples: usize) {
-        let transfer_size = core::cmp::min(samples * core::mem::size_of::<FifoPacket>() + 1, 512);
-        let mut buffer = [0u8; 513];
-        let mut send_buffer = [0u8; 513];
+        let transfer_size = core::cmp::min(samples * core::mem::size_of::<FifoPacket>() + 1, FIFO_BUF_SIZE - 1);
+        let mut buffer = [0u8; FIFO_BUF_SIZE];
+        let mut send_buffer = [0u8; FIFO_BUF_SIZE];
 
         send_buffer[0] = Register::FifoRW.read();
 
@@ -84,6 +120,8 @@ impl Mpu9250 {
             .await
             .unwrap();
         self.ncs.set_high();
+
+        MPU_PIPE.write_all(&buffer[..transfer_size]).await;
     }
 
     fn configure_accelerometer(&self) {}
@@ -423,7 +461,7 @@ pub fn new(
     ch: AnyChannel,
 ) -> Mpu9250 {
     let ncs = Output::new(ncs, Level::High, Speed::Low);
-    let samples = (1250. / (1000000. / (1.0e6 / (1.0e6 / 8000.)))) as u32;
+    let samples = 2;
     Mpu9250 {
         spi,
         ncs,
@@ -434,26 +472,26 @@ pub fn new(
 }
 
 #[repr(C)]
-struct FifoPacket {
-    accel_xout_h: u8,
-    accel_xout_l: u8,
-    accel_yout_h: u8,
-    accel_yout_l: u8,
-    accel_zout_h: u8,
-    accel_zout_l: u8,
-    gyro_xout_h: u8,
-    gyro_xout_l: u8,
-    gyro_yout_h: u8,
-    gyro_yout_l: u8,
-    gyro_zout_h: u8,
-    gyro_zout_l: u8,
+pub struct FifoPacket {
+    pub accel_xout_h: u8,
+    pub accel_xout_l: u8,
+    pub accel_yout_h: u8,
+    pub accel_yout_l: u8,
+    pub accel_zout_h: u8,
+    pub accel_zout_l: u8,
+    pub gyro_xout_h: u8,
+    pub gyro_xout_l: u8,
+    pub gyro_yout_h: u8,
+    pub gyro_yout_l: u8,
+    pub gyro_zout_h: u8,
+    pub gyro_zout_l: u8,
 }
 
 #[embassy_executor::task]
 pub async fn task(mut mpu: Mpu9250) {
     info!("MPU9250: task started");
     let (pin, ch) = mpu.drdy.take().unwrap();
-    let mut drdy = ExtiInput::new(pin, ch, Pull::None);
+    let mut drdy = ExtiInput::new(pin, ch, Pull::Up);
     let mut timestamp = Instant::now();
     let mut drdy_count = 0;
 
@@ -512,7 +550,7 @@ pub async fn task(mut mpu: Mpu9250) {
                 mpu.reset_fifo().await;
             }
             State::FifoRead => {
-                let int = drdy.wait_for_falling_edge();
+                let int = drdy.wait_for_low();
                 let wdt = Timer::after(Duration::from_micros(100_000));
 
                 match select(int, wdt).await {
@@ -532,7 +570,7 @@ pub async fn task(mut mpu: Mpu9250) {
                 if available >= 512 {
                     info!("MPU9250: FIFO overflow");
                     mpu.reset_fifo().await;
-                    drdy_count = 0;
+                    drdy_count = mpu.fifo_gyro_samples - 1;
                     timestamp = Instant::from_micros(0);
                     continue;
                 } else if available == 0 {

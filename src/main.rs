@@ -9,11 +9,15 @@ use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::usart::{Config as UsartConfig, Uart};
 use embassy_stm32::exti::Channel;
 use embassy_time::{Duration, Timer};
-use defmt::*;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, pipe::Pipe};
 use {defmt_rtt as _, panic_probe as _};
 mod led_state;
 mod mpu9250;
 mod serial;
+
+const FIFO_BUF_SIZE: usize = 513;
+/// Pipe from MPU to USART
+static MPU_PIPE: Pipe<CriticalSectionRawMutex, FIFO_BUF_SIZE> = Pipe::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -39,7 +43,7 @@ async fn main(spawner: Spawner) {
 
     let spi = Spi::new(
         p.SPI1,
-        p.PA5, // A4  SCL
+        p.PA1, // A1  SCL
         p.PB5, // D11 SDA
         p.PB4, // D12 AD0
         p.DMA1_CH3,
@@ -51,7 +55,6 @@ async fn main(spawner: Spawner) {
     spawner.spawn(mpu9250::task(mpu)).unwrap();
 
     loop {
-        info!("bam");
         Timer::after(Duration::from_millis(1_000)).await;
     }
 }

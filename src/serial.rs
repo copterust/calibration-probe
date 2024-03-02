@@ -1,4 +1,7 @@
 use embassy_stm32::usart::Uart;
+use defmt::*;
+
+use crate::{mpu9250::FifoPacket, FIFO_BUF_SIZE, MPU_PIPE};
 
 #[embassy_executor::task]
 pub async fn echo_task(
@@ -11,9 +14,17 @@ pub async fn echo_task(
 ) {
     usart.write(b"\r\nCalibration Probe\r\n").await.unwrap();
 
-    let mut msg: [u8; 1] = [0; 1];
+    let mut msg: [u8; FIFO_BUF_SIZE] = [0; FIFO_BUF_SIZE];
     loop {
-        usart.read(&mut msg).await.unwrap();
+        MPU_PIPE.read(&mut msg).await;
         usart.write(&msg).await.unwrap();
+        /*
+        let ret = usart.read(&mut msg).await;
+        if let Ok(_some) = ret {
+            usart.write(&msg).await.unwrap();
+        } else {
+            info!("SERIAL: {:?}", ret);
+        }
+        */
     }
 }
